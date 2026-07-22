@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AI Negotiator Showdown 🚀
 > **Enterprise-Grade Multi-Agent Negotiation Intelligence & Battle Simulation Platform**
 
@@ -170,3 +171,7 @@ pytest test_pipeline.py -v
 
 ## 📜 License & Portfolio Usage
 Created for technical portfolio demonstrations and enterprise AI software engineering showcases.
+=======
+# NegoSphere
+An intelligent negotiation platform that leverages multiple AI agents to analyze prices, estimate fair market value, simulate negotiations, and maximize user savings.
+>>>>>>> d38118bf93578c52c62e8174ec5c8ea20f38e295
