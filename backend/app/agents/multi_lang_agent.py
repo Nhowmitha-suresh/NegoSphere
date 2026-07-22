@@ -9,7 +9,7 @@ LANGUAGES = {
     "Hindi": "Hindi (हिंदी)",
     "Tamil": "Tamil (தமிழ்)",
     "Telugu": "Telugu (తెలుగు)",
-    "Kannada": "Kannada (കന്നഡ)",
+    "Kannada": "Kannada (ಕನ್ನಡ)",
     "Malayalam": "Malayalam (മലയാളം)"
 }
 
