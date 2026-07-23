@@ -31,7 +31,7 @@ class SummaryAgent:
         ]
 
         shareable_card = {
-            "title": "AI Negotiator Showdown Victory Card",
+            "title": "NegoSphere Victory Card",
             "product_name": product_name,
             "initial_price": initial_price,
             "negotiated_price": negotiated_price,
