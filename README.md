@@ -1,12 +1,10 @@
-<<<<<<< HEAD
-# AI Negotiator Showdown 🚀
-> **Enterprise-Grade Multi-Agent Negotiation Intelligence & Battle Simulation Platform**
+# NegoSphere 🚀
+> **An intelligent negotiation platform that leverages 8 autonomous AI agents to analyze prices, estimate fair market value, simulate AI-vs-AI negotiations, and maximize savings.**
 
-[![Deloitte Tech Focus](https://img.shields.io/badge/Deloitte_Interview-Ready-blue.svg)](#deloitte-interview-talking-points)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Vite](https://img.shields.io/badge/Frontend-React_18_%7C_Vite-61DAFB.svg)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/UI-Glassmorphism_Tailwind-38B2AC.svg)](https://tailwindcss.com/)
-[![Multi-Agent Architecture](https://img.shields.io/badge/AI-8_Autonomous_Agents-8A2BE2.svg)](#multi-agent-architecture)
+[![Multi-Agent Architecture](https://img.shields.io/badge/AI-8_Autonomous_Agents-8A2BE2.svg)](#-multi-agent-system-architecture)
 
 ---
 
@@ -18,7 +16,7 @@ Many consumers and procurement officers hesitate during price negotiations becau
 * **What exact wording and tone should be used to close the deal?**
 * **Will the seller accept, counter, or walk away?**
 
-**AI Negotiator Showdown** solves this by combining multi-vendor web data collection, statistical price dispersion modeling, 0–100 opportunity confidence scoring, 6 persona-matched strategy coaching, 6-language natural script adaptation, and an automated **Agent-vs-Agent Showdown Battle Arena**.
+**NegoSphere** solves this by combining multi-vendor web data collection, statistical price dispersion modeling, 0–100 opportunity confidence scoring, 6 persona-matched strategy coaching, 6-language natural script adaptation, and an automated **Agent-vs-Agent Showdown Battle Arena**.
 
 ---
 
@@ -101,20 +99,53 @@ The platform operates via an **Asynchronous Central Orchestrator** managing 8 sp
 
 ---
 
-## 💼 Deloitte Interview Talking Points & Deep Dives
+## 🎬 Live Battle Arena Demo Preview
 
-When discussing this project with recruiters and technical interviewers at Deloitte or top tech firms, highlight the following engineering decisions:
+> **Watch Buyer AI negotiate live against Seller AI personalities turn-by-turn with Server-Sent Events (SSE) streaming.**
+
+![NegoSphere Demo Preview](https://via.placeholder.com/1200x600/0B0F19/6366F1?text=NegoSphere+AI-vs-AI+Battle+Arena+Demo+Preview)
+*(Placeholder: Replace with actual `demo.gif` or Loom video walkthrough)*
+
+---
+
+## 📐 Architecture Decision Records (ADRs)
+
+Key engineering design decisions are formally documented in [`/docs/adr/`](file:///c:/Users/Lenovo/Desktop/NegoSphere/docs/adr/):
+
+- [ADR 0001: Multi-Agent Pipeline Architecture](file:///c:/Users/Lenovo/Desktop/NegoSphere/docs/adr/0001-multi-agent-pipeline-architecture.md) — Why 8 specialized agents instead of a single prompt.
+- [ADR 0002: Dual-LLM Engine with Offline Fallback](file:///c:/Users/Lenovo/Desktop/NegoSphere/docs/adr/0002-dual-llm-with-offline-fallback.md) — Resilient AI architecture supporting Gemini 1.5 Flash, GPT-4o, and zero-downtime offline fallback.
+- [ADR 0003: Ethical Web Scraping & Fallback Data Architecture](file:///c:/Users/Lenovo/Desktop/NegoSphere/docs/adr/0003-hybrid-ethical-web-scraping.md) — Responsible data collection, rate limiting, and fallback dataset reliability.
+- [ADR 0004: Real-time SSE Simulation Streaming](file:///c:/Users/Lenovo/Desktop/NegoSphere/docs/adr/0004-realtime-sse-simulation.md) — Streaming turn-by-turn AI showdown dialogue over Server-Sent Events.
+
+---
+
+## 💼 Technical Portfolio Interview Deep Dives
+
+When discussing NegoSphere in technical software engineering interviews, highlight these core architectural principles:
 
 1. **Multi-Agent Orchestration & Separation of Concerns:**
-   - Rather than relying on a single prompt, the system breaks down complex reasoning into discrete agents. Each agent has a focused contract, making the codebase testable and modular.
+   - Rather than relying on a monolithic prompt, complex reasoning is broken down into 8 single-responsibility agents. Each agent enforces a strict Pydantic input/output contract, enabling isolated unit testing.
 2. **Resilient AI System Design (Dual LLM + Offline Fallback):**
-   - The platform never crashes due to API key rate limits or network dropouts. It implements graceful degradation using heuristic mock engines.
-3. **Data Engineering & Statistical Modeling:**
-   - Demonstrates quantitative metrics (standard deviation, variance, percentiles) and normal density curves to inform AI decision-making.
-4. **Responsible Scraping & Legal Risk Management:**
-   - Articulates clear understanding of data collection boundaries (`robots.txt`, rate limiting, fallback datasets).
+   - Implements graceful degradation so network dropouts or API rate limits never crash the application. Offline heuristic engines guarantee 100% evaluation uptime.
+3. **Data Engineering & Quantitative Statistical Modeling:**
+   - Combines qualitative LLM strategy with quantitative statistics (variance, standard deviation, Gaussian PDF curves) to compute 0–100 confidence scores.
+4. **Responsible Scraping & Legal Risk Boundaries:**
+   - Articulates clear boundaries (`robots.txt`, rate limits, fallback datasets) to ensure compliance and zero downtime.
 5. **Full-Stack Glassmorphism UX:**
-   - Modern enterprise visual standards with interactive visualizers, battle arenas, and print-ready PDF reporting.
+   - Modern enterprise visual standards with interactive Recharts visualizers, live SSE battle arenas, and print-ready PDF export reporting.
+
+---
+
+## 📌 Known Limitations & Product Roadmap
+
+### Current Scope & Limitations
+- **Offline Fallback Default**: When live scraping is throttled or API keys are unconfigured, pricing metrics draw from curated Indian bazaar benchmarks.
+- **Single-turn Real-time Streaming**: SSE streaming animates preset turn dialogues; multi-agent interactive user injection is planned.
+
+### Planned Roadmap
+- [ ] **Voice Input / Speech Synthesis**: Real-time voice coaching playback using Web Speech API.
+- [ ] **User Authentication & JWT**: Saved user profiles and shareable custom negotiation URLs.
+- [ ] **Chrome Browser Extension**: One-click URL & price extraction directly from e-commerce product pages into NegoSphere.
 
 ---
 
@@ -171,7 +202,3 @@ pytest test_pipeline.py -v
 
 ## 📜 License & Portfolio Usage
 Created for technical portfolio demonstrations and enterprise AI software engineering showcases.
-=======
-# NegoSphere
-An intelligent negotiation platform that leverages multiple AI agents to analyze prices, estimate fair market value, simulate negotiations, and maximize user savings.
->>>>>>> d38118bf93578c52c62e8174ec5c8ea20f38e295
