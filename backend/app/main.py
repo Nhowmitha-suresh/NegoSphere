@@ -6,16 +6,20 @@ from app.config import settings
 from app.db.database import init_db
 from app.api import products, prices, analyze, negotiate, simulate, history, report, auth
 
+from app.core.logging import setup_logging, logger
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables on startup
+    # Initialize structured logging & database tables on startup
+    setup_logging()
+    logger.info("Initializing NegoSphere Backend Service...")
     await init_db()
     yield
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="AI Negotiator Showdown - Multi-Agent Negotiation Coach & Battle Simulation Platform",
+    description="NegoSphere - Multi-Agent Negotiation Coach & Battle Simulation Platform",
     lifespan=lifespan
 )
 
