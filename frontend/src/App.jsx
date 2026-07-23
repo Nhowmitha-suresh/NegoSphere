@@ -8,7 +8,10 @@ import ShowdownArena from './components/ShowdownArena';
 import DealSummaryCard from './components/DealSummaryCard';
 import SavedHistory from './components/SavedHistory';
 import ExportPDFModal from './components/ExportPDFModal';
+import ScoreExplainabilityCard from './components/ScoreExplainabilityCard';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import { DuolingoMascotTip, DuolingoProgressBar } from './components/DuolingoGamification';
+import { ErrorMessage } from './components/ui/ErrorMessage';
 import { api } from './services/api';
 import { Search, Sparkles, Bot, ShieldCheck, ArrowRight, RefreshCw, Zap, Flame, Trophy } from 'lucide-react';
 
@@ -23,6 +26,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('search');
   const [searchQuery, setSearchQuery] = useState('Samsung S24 Ultra');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [pipelineStep, setPipelineStep] = useState(0);
   const [pipelineData, setPipelineData] = useState(null);
 
@@ -59,6 +63,7 @@ export default function App() {
     if (!q.trim()) return;
 
     setLoading(true);
+    setError(null);
     setPipelineStep(1);
 
     // Bouncy step animation
@@ -74,7 +79,9 @@ export default function App() {
       setUserXp((prev) => prev + 50); // Earn 50 XP per search!
       loadHistory();
     } catch (err) {
+      clearInterval(timer);
       console.error("Pipeline run error:", err);
+      setError(err?.response?.data?.detail || err?.message || 'Failed to execute multi-agent pipeline. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -208,11 +215,23 @@ export default function App() {
         {/* Live Multi-Agent Execution Progress Stepper */}
         <AgentPipelineProgress currentStep={pipelineStep} isComplete={pipelineStep === 8 && !loading} />
 
+        {/* Global Error Banner */}
+        {error && (
+          <ErrorMessage
+            title="Multi-Agent Pipeline Error"
+            message={error}
+            onRetry={() => handleSearch(searchQuery)}
+          />
+        )}
+
         {/* Tab 1: Deal Finder & Search Summary */}
         {activeTab === 'search' && pipelineData && (
           <div className="space-y-8 animate-fadeIn">
             {/* Opportunity 0-100 Score Gauge */}
             <OpportunityScore opportunity={pipelineData.opportunity} />
+
+            {/* Score Explainability Breakdown Card */}
+            <ScoreExplainabilityCard opportunity={pipelineData.opportunity} />
 
             {/* Shareable Deal Victory Card */}
             <DealSummaryCard
@@ -251,9 +270,10 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 2: Full Price Analytics */}
+        {/* Tab 2: Full Price Analytics & Macro History Dashboard */}
         {activeTab === 'analytics' && (
           <div className="space-y-8 animate-fadeIn">
+            <AnalyticsDashboard historyData={historyList} />
             <PriceAnalytics data={pipelineData} />
           </div>
         )}
