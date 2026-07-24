@@ -175,6 +175,24 @@ def test_audit_flow_8_resend_otp():
         "accept_terms": True
     })
     
+    # Update created_at in DB to bypass 60s rate limit for test
+    from app.db.database import AsyncSessionLocal
+    from app.db.models import EmailVerificationToken
+    from sqlalchemy import update
+    from datetime import datetime, timedelta
+    import asyncio
+
+    async def shift_token_time():
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                update(EmailVerificationToken)
+                .where(EmailVerificationToken.email == test_email)
+                .values(created_at=datetime.utcnow() - timedelta(seconds=65))
+            )
+            await session.commit()
+    
+    asyncio.run(shift_token_time())
+
     t0 = time.perf_counter()
     resend_resp = client.post("/api/auth/resend-email-otp", json={"email": test_email})
     resend_time_ms = (time.perf_counter() - t0) * 1000.0
@@ -184,3 +202,4 @@ def test_audit_flow_8_resend_otp():
     assert resend_data["status"] == "success"
     assert "dev_otp_code" in resend_data
     assert resend_time_ms < 2000.0
+
