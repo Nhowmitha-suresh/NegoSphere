@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.database import init_db
-from app.api import products, prices, analyze, negotiate, simulate, history, report, auth
+from app.api import products, prices, analyze, negotiate, simulate, history, report, auth, maps
 
 from app.core.logging import setup_logging, logger
 
@@ -41,6 +41,8 @@ app.include_router(simulate.router, prefix=settings.API_PREFIX)
 app.include_router(history.router, prefix=settings.API_PREFIX)
 app.include_router(report.router, prefix=settings.API_PREFIX)
 app.include_router(auth.router, prefix=settings.API_PREFIX)
+app.include_router(maps.router, prefix=settings.API_PREFIX)
+
 
 @app.get("/")
 async def root():
