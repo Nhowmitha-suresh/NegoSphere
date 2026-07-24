@@ -81,22 +81,23 @@ export default function NegoSphereLogo3D({
 
       // Draw Floating Polished Gold Spheres on Orbits
       ORBITAL_SPHERES.forEach((s) => {
-        const rad = ringRadii[s.ring];
+        const rad = Math.max(0.1, ringRadii[s.ring]);
         const currentAngle = s.angleOffset + time * 0.0002 * speedMult * (s.ring % 2 === 0 ? 1 : -1);
         const sx = Math.cos(currentAngle) * rad;
         const sy = Math.sin(currentAngle) * rad * 0.55;
+        const sphereRadius = Math.max(0.1, s.r * easeAssembly);
 
         ctx.save();
         ctx.rotate(ringTilts[s.ring]);
         
-        const sphereGrad = ctx.createRadialGradient(sx - s.r * 0.3, sy - s.r * 0.3, 1, sx, sy, s.r);
+        const sphereGrad = ctx.createRadialGradient(sx - s.r * 0.3, sy - s.r * 0.3, 0.1, sx, sy, Math.max(0.1, s.r));
         sphereGrad.addColorStop(0, '#FFF6E5');
         sphereGrad.addColorStop(0.4, '#C9A76A');
         sphereGrad.addColorStop(0.8, '#7A5C45');
         sphereGrad.addColorStop(1, '#3F3024');
 
         ctx.beginPath();
-        ctx.arc(sx, sy, s.r * easeAssembly, 0, Math.PI * 2);
+        ctx.arc(sx, sy, sphereRadius, 0, Math.PI * 2);
         ctx.fillStyle = sphereGrad;
         ctx.shadowColor = 'rgba(201, 167, 106, 0.5)';
         ctx.shadowBlur = 8 + pulseGlow;
@@ -109,7 +110,7 @@ export default function NegoSphereLogo3D({
         const emblemAlpha = animateAssembly ? Math.min(1, (assemblyProgress - 0.15) / 0.85) : 1;
         ctx.globalAlpha = emblemAlpha;
 
-        const R = size * 0.18;
+        const R = Math.max(0.1, size * 0.18);
         
         // Brushed Gold Metallic Gradient with Dynamic Specular Light Sweep
         const goldGrad = ctx.createLinearGradient(-R, -R, R, R);
@@ -125,14 +126,15 @@ export default function NegoSphereLogo3D({
           ctx.rotate(i * Math.PI + time * 0.0001 * speedMult);
 
           ctx.beginPath();
-          ctx.arc(0, R * 0.15, R * 0.8, 0.2, Math.PI - 0.2, false);
-          ctx.arc(0, -R * 0.05, R * 0.65, Math.PI - 0.3, 0.3, true);
+          ctx.arc(0, R * 0.15, Math.max(0.1, R * 0.8), 0.2, Math.PI - 0.2, false);
+          ctx.arc(0, -R * 0.05, Math.max(0.1, R * 0.65), Math.PI - 0.3, 0.3, true);
           ctx.closePath();
 
           ctx.fillStyle = goldGrad;
           ctx.shadowColor = theme === 'dark' ? 'rgba(201, 167, 106, 0.5)' : 'rgba(63, 48, 36, 0.3)';
           ctx.shadowBlur = 12 + pulseGlow;
           ctx.fill();
+
 
           ctx.strokeStyle = 'rgba(255, 246, 229, 0.7)';
           ctx.lineWidth = 0.9;

@@ -1,4 +1,9 @@
+import React, { useState } from 'react';
+import { Shield, Sparkles, Cpu, Lock, Mail, User, ArrowRight, Github, Fingerprint, Key, Layers, History, Laptop, AlertCircle } from 'lucide-react';
+import { playGlassTap } from '../utils/audio';
+import { api } from '../services/api';
 import NegoSphereLogo3D from './NegoSphereLogo3D';
+
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -36,9 +41,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             id: res.user?.id,
             name: `${firstName} ${lastName}`,
             email: res.user?.email || email,
-            role: 'Enterprise User'
+            role: 'Enterprise User',
+            devOtpCode: res.dev_otp_code
           });
         }
+
       } else {
         const res = await api.loginUser({ email, password, remember_me: remember });
         if (res.status === 'success' || res.status === 'requires_verification') {

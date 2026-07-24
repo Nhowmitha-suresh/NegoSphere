@@ -144,8 +144,10 @@ export default function App() {
       <AccountVerificationModal
         isOpen={screenState === 'verification'}
         userEmail={user.email}
+        devOtpCode={user.devOtpCode}
         onComplete={handleVerificationComplete}
       />
+
 
 
       {/* Onboarding 4-Step Wizard */}

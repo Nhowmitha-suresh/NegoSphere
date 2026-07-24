@@ -1,5 +1,7 @@
 import React from 'react';
+import { Home, Search, MessageSquareCode, LineChart, FileSpreadsheet, User, Settings, LogOut } from 'lucide-react';
 import NegoSphereLogo3D from './NegoSphereLogo3D';
+
 
 const CLEAN_NAV_ITEMS = [
   { id: 'dashboard', label: 'Home', icon: Home },

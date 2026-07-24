@@ -3,15 +3,23 @@ import { Mail, Phone, ShieldCheck, Bell, MapPin, CheckCircle2, AlertTriangle, Re
 import { playGlassTap, playSuccessChime } from '../utils/audio';
 import { api } from '../services/api';
 
-export default function AccountVerificationModal({ isOpen, userEmail = "executive@company.com", onComplete }) {
+export default function AccountVerificationModal({ isOpen, userEmail = "executive@company.com", devOtpCode = null, onComplete }) {
   const [step, setStep] = useState(1);
-  const [otpCode, setOtpCode] = useState('');
+  const [otpCode, setOtpCode] = useState(devOtpCode || '');
+  const [currentDevCode, setCurrentDevCode] = useState(devOtpCode);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [timerSeconds, setTimerSeconds] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [verifiedSuccess, setVerifiedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (devOtpCode) {
+      setOtpCode(devOtpCode);
+      setCurrentDevCode(devOtpCode);
+    }
+  }, [devOtpCode]);
 
   useEffect(() => {
     let interval = null;
@@ -24,6 +32,7 @@ export default function AccountVerificationModal({ isOpen, userEmail = "executiv
     }
     return () => clearInterval(interval);
   }, [isOpen, timerSeconds]);
+
 
   if (!isOpen) return null;
 
@@ -66,11 +75,16 @@ export default function AccountVerificationModal({ isOpen, userEmail = "executiv
     try {
       const res = await api.resendEmailOtp(userEmail);
       if (res.status === 'success') {
+        if (res.dev_otp_code) {
+          setOtpCode(res.dev_otp_code);
+          setCurrentDevCode(res.dev_otp_code);
+        }
         setSuccessMsg(`A new 6-digit code was sent to ${userEmail}.`);
         setTimerSeconds(60);
         setCanResend(false);
       }
     } catch (err) {
+
       const detail = err.response?.data?.detail || "Failed to resend verification code.";
       setErrorMsg(detail);
     } finally {
@@ -121,7 +135,24 @@ export default function AccountVerificationModal({ isOpen, userEmail = "executiv
               <p className="text-xs text-[#7A5C45]">
                 We dispatched a secure 6-digit verification code to <strong className="text-[#3F3024]">{userEmail}</strong>.
               </p>
+
+              {currentDevCode && (
+                <div className="p-3 rounded-2xl bg-[#C9A76A]/20 border border-[#C9A76A]/50 text-xs text-[#3F3024] font-semibold flex items-center justify-between shadow-sm">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-4 h-4 text-[#C9A76A]" />
+                    <span>Dev Verification Code: <strong className="font-mono text-base font-extrabold">{currentDevCode}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { playGlassTap(); setOtpCode(currentDevCode); }}
+                    className="px-2.5 py-1 rounded-xl bg-[#3F3024] text-[#C9A76A] text-[10px] font-bold uppercase tracking-wider"
+                  >
+                    Auto-Fill
+                  </button>
+                </div>
+              )}
             </div>
+
 
             {/* OTP Input */}
             <div className="space-y-2">

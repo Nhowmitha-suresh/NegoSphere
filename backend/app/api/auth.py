@@ -132,12 +132,16 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # Send real email with verification code
     await email_service.send_verification_otp(req.email, otp_code, req.first_name)
 
+    dev_mode = not (settings.RESEND_API_KEY or settings.SENDGRID_API_KEY or settings.SMTP_USER)
+
     return {
         "status": "success",
         "message": f"Account created. A secure 6-digit verification code was sent to {req.email}.",
         "email": req.email,
-        "expires_in_seconds": 600
+        "expires_in_seconds": 600,
+        "dev_otp_code": otp_code if dev_mode else None
     }
+
 
 @router.post("/verify-email-otp")
 async def verify_email_otp(req: VerifyEmailOtpRequest, response: Response, db: AsyncSession = Depends(get_db)):
@@ -270,11 +274,15 @@ async def resend_email_otp(req: ResendEmailOtpRequest, db: AsyncSession = Depend
     # Send email
     await email_service.send_verification_otp(req.email, otp_code, user.first_name or "User")
 
+    dev_mode = not (settings.RESEND_API_KEY or settings.SENDGRID_API_KEY or settings.SMTP_USER)
+
     return {
         "status": "success",
         "message": f"A new 6-digit verification code has been dispatched to {req.email}.",
-        "expires_in_seconds": 600
+        "expires_in_seconds": 600,
+        "dev_otp_code": otp_code if dev_mode else None
     }
+
 
 @router.post("/login")
 async def login(req: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):

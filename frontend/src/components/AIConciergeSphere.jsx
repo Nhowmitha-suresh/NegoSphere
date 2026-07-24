@@ -1,4 +1,8 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, Mic, MicOff, Camera, Upload, Send, X, Volume2, Cpu, FileText, CheckCircle2, Image as ImageIcon } from 'lucide-react';
+import { playGlassTap, playSuccessChime } from '../utils/audio';
 import NegoSphereLogo3D from './NegoSphereLogo3D';
+
 
 export default function AIConciergeSphere({ onRunAction }) {
   const [isOpen, setIsOpen] = useState(false);
