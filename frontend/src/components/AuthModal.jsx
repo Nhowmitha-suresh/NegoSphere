@@ -42,21 +42,32 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             name: `${firstName} ${lastName}`,
             email: res.user?.email || email,
             role: 'Enterprise User',
-            devOtpCode: res.dev_otp_code
+            devOtpCode: res.dev_otp_code,
+            requires_verification: true
           });
         }
 
       } else {
         const res = await api.loginUser({ email, password, remember_me: remember });
-        if (res.status === 'success' || res.status === 'requires_verification') {
+        if (res.status === 'success') {
           onAuthSuccess({
             id: res.user?.id || 'usr-1',
             name: res.user?.name || `${firstName} ${lastName}`,
             email,
-            role: res.user?.role || 'Enterprise User'
+            role: res.user?.role || 'Enterprise User',
+            requires_verification: false
+          });
+        } else if (res.status === 'requires_verification') {
+          onAuthSuccess({
+            id: res.user?.id || 'usr-1',
+            name: res.user?.name || `${firstName} ${lastName}`,
+            email,
+            role: res.user?.role || 'Enterprise User',
+            requires_verification: true
           });
         }
       }
+
     } catch (err) {
       const detail = err.response?.data?.detail || "Authentication failed. Please check your credentials.";
       setErrorMsg(detail);

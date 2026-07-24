@@ -39,6 +39,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# High-precision API response time middleware
+from fastapi import Request
+import time
+
+@app.middleware("http")
+async def add_performance_logging_middleware(request: Request, call_next):
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    process_time_ms = (time.perf_counter() - start_time) * 1000.0
+    response.headers["X-Process-Time-Ms"] = f"{process_time_ms:.2f}"
+    
+    if request.url.path.startswith("/api/auth") or request.url.path.startswith("/auth"):
+        logger.info(f"⚡ [AUTH PERFORMANCE] {request.method} {request.url.path} responded in {process_time_ms:.2f}ms")
+    return response
+
+
 # Primary API Routers (with /api prefix)
 app.include_router(products.router, prefix=settings.API_PREFIX)
 app.include_router(prices.router, prefix=settings.API_PREFIX)

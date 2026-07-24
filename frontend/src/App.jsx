@@ -150,12 +150,17 @@ export default function App() {
 
   const handleAuthSuccess = (userData) => {
     setUser(userData);
-    setScreenState('verification');
+    if (userData && userData.requires_verification) {
+      setScreenState('verification');
+    } else {
+      setScreenState('workspace'); // Instant navigation to Dashboard for verified users!
+    }
   };
 
   const handleVerificationComplete = () => {
-    setScreenState('onboarding');
+    setScreenState('workspace'); // Instant navigation to Dashboard after verification!
   };
+
 
   const handleOnboardingComplete = () => {
     setScreenState('location_permission');
@@ -197,7 +202,9 @@ export default function App() {
         userEmail={user.email}
         devOtpCode={user.devOtpCode}
         onComplete={handleVerificationComplete}
+        onBack={() => setScreenState('auth')}
       />
+
 
 
 

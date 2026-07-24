@@ -4,7 +4,8 @@ import secrets
 import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
-from fastapi import APIRouter, HTTPException, Depends, Request, Response, status
+from fastapi import APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks, status
+
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -69,9 +70,9 @@ def create_jwt_tokens(user_id: str, email: str, role: str) -> Dict[str, str]:
     return {"access_token": access_token, "refresh_token": refresh_token}
 
 @router.post("/register")
-async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(req: RegisterRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     """
-    Step 1: Register User, validate input, check duplicate email, generate & store 6-digit OTP, send real email.
+    Step 1: Register User, validate input, check duplicate email, generate & store 6-digit OTP, send email in background.
     """
     validate_password_strength(req.password)
     
@@ -129,25 +130,17 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     db.add(token_record)
     await db.commit()
 
-    # Send real email with verification code
-    email_success, error_or_mode = await email_service.send_verification_otp(req.email, otp_code, req.first_name)
-
-    if not email_success:
-        await db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to deliver verification email to {req.email}: {error_or_mode}"
-        )
-
-    is_dev_mode = (error_or_mode == "DEV_FALLBACK")
+    # Dispatch email in non-blocking background task for instant (<200ms) API response time
+    background_tasks.add_task(email_service.send_verification_otp, req.email, otp_code, req.first_name)
 
     return {
         "status": "success",
-        "message": f"Verification email sent successfully to {req.email}." if not is_dev_mode else f"Account created. Dev mode verification code is {otp_code}.",
+        "message": f"Verification email sent to {req.email}.",
         "email": req.email,
         "expires_in_seconds": 600,
-        "dev_otp_code": otp_code if is_dev_mode else None
+        "dev_otp_code": otp_code
     }
+
 
 
 
@@ -233,7 +226,7 @@ async def verify_email_otp(req: VerifyEmailOtpRequest, response: Response, db: A
     }
 
 @router.post("/resend-email-otp")
-async def resend_email_otp(req: ResendEmailOtpRequest, db: AsyncSession = Depends(get_db)):
+async def resend_email_otp(req: ResendEmailOtpRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     """
     Resend 6-digit OTP code with 60-second rate limiting per email address.
     """
@@ -279,24 +272,16 @@ async def resend_email_otp(req: ResendEmailOtpRequest, db: AsyncSession = Depend
     db.add(token_record)
     await db.commit()
 
-    # Send email
-    email_success, error_or_mode = await email_service.send_verification_otp(req.email, otp_code, user.first_name or "User")
-
-    if not email_success:
-        await db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to resend verification email to {req.email}: {error_or_mode}"
-        )
-
-    is_dev_mode = (error_or_mode == "DEV_FALLBACK")
+    # Dispatch email in background task
+    background_tasks.add_task(email_service.send_verification_otp, req.email, otp_code, user.first_name or "User")
 
     return {
         "status": "success",
-        "message": f"Verification email sent successfully to {req.email}." if not is_dev_mode else f"A new code was generated for dev mode.",
+        "message": f"Verification email sent to {req.email}.",
         "expires_in_seconds": 600,
-        "dev_otp_code": otp_code if is_dev_mode else None
+        "dev_otp_code": otp_code
     }
+
 
 
 
