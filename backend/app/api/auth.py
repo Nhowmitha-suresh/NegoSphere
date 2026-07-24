@@ -130,17 +130,25 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     # Send real email with verification code
-    await email_service.send_verification_otp(req.email, otp_code, req.first_name)
+    email_success, error_or_mode = await email_service.send_verification_otp(req.email, otp_code, req.first_name)
 
-    dev_mode = not (settings.RESEND_API_KEY or settings.SENDGRID_API_KEY or settings.SMTP_USER)
+    if not email_success:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to deliver verification email to {req.email}: {error_or_mode}"
+        )
+
+    is_dev_mode = (error_or_mode == "DEV_FALLBACK")
 
     return {
         "status": "success",
-        "message": f"Account created. A secure 6-digit verification code was sent to {req.email}.",
+        "message": f"Verification email sent successfully to {req.email}." if not is_dev_mode else f"Account created. Dev mode verification code is {otp_code}.",
         "email": req.email,
         "expires_in_seconds": 600,
-        "dev_otp_code": otp_code if dev_mode else None
+        "dev_otp_code": otp_code if is_dev_mode else None
     }
+
 
 
 @router.post("/verify-email-otp")
@@ -272,16 +280,24 @@ async def resend_email_otp(req: ResendEmailOtpRequest, db: AsyncSession = Depend
     await db.commit()
 
     # Send email
-    await email_service.send_verification_otp(req.email, otp_code, user.first_name or "User")
+    email_success, error_or_mode = await email_service.send_verification_otp(req.email, otp_code, user.first_name or "User")
 
-    dev_mode = not (settings.RESEND_API_KEY or settings.SENDGRID_API_KEY or settings.SMTP_USER)
+    if not email_success:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to resend verification email to {req.email}: {error_or_mode}"
+        )
+
+    is_dev_mode = (error_or_mode == "DEV_FALLBACK")
 
     return {
         "status": "success",
-        "message": f"A new 6-digit verification code has been dispatched to {req.email}.",
+        "message": f"Verification email sent successfully to {req.email}." if not is_dev_mode else f"A new code was generated for dev mode.",
         "expires_in_seconds": 600,
-        "dev_otp_code": otp_code if dev_mode else None
+        "dev_otp_code": otp_code if is_dev_mode else None
     }
+
 
 
 @router.post("/login")

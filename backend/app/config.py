@@ -31,14 +31,15 @@ class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./negosphere.db")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     
-    # Real Email Provider Settings (Resend / SendGrid / SMTP / Mailgun)
+    # Real Email Provider Settings (Resend / SendGrid / SMTP / Mailgun / Gmail)
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
     SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
-    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER: str = os.getenv("SMTP_USER", "")
-    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
-    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "NegoSphere Security <auth@negosphere.ai>")
+    SMTP_HOST: str = os.getenv("SMTP_HOST", os.getenv("EMAIL_HOST", "smtp.gmail.com"))
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", os.getenv("EMAIL_PORT", "587")))
+    SMTP_USER: str = os.getenv("SMTP_USER", os.getenv("EMAIL_USER", os.getenv("GMAIL_USER", "")))
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", os.getenv("EMAIL_PASSWORD", os.getenv("GMAIL_APP_PASSWORD", "")))
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", os.getenv("FROM_EMAIL", os.getenv("SMTP_FROM", "NegoSphere Security <auth@negosphere.ai>")))
+
     
     # Web Scraping & Location Settings
     ENABLE_LIVE_SCRAPING: bool = os.getenv("ENABLE_LIVE_SCRAPING", "true").lower() == "true"
