@@ -54,5 +54,76 @@ export const api = {
   getHistory: async () => {
     const res = await axios.get(`${API_BASE_URL}/history/`);
     return res.data.data;
+  },
+
+  // Real Google Maps & Location API endpoints
+  getNearbyStores: async (lat, lng, query = 'electronics', radius = 10000) => {
+    const res = await axios.get(`${API_BASE_URL}/maps/nearby-stores`, {
+      params: { lat, lng, query, radius }
+    });
+    return res.data;
+  },
+
+  getDirections: async (originLat, originLng, destLat, destLng, mode = 'driving') => {
+    const res = await axios.get(`${API_BASE_URL}/maps/directions`, {
+      params: { origin_lat: originLat, origin_lng: originLng, dest_lat: destLat, dest_lng: destLng, mode }
+    });
+    return res.data.route;
+  },
+
+  optimizeShoppingRoute: async (originLat, originLng, destinations, optimizationMode = 'max_savings') => {
+    const res = await axios.post(`${API_BASE_URL}/maps/optimize-shopping-route`, {
+      origin_lat: originLat,
+      origin_lng: originLng,
+      destinations,
+      optimization_mode: optimizationMode
+    });
+    return res.data;
+  },
+
+  // Auth endpoints
+  registerUser: async (userData) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/register`, userData);
+    return res.data;
+  },
+
+  verifyEmailOtp: async (email, otpCode) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/verify-email-otp`, { email, otp_code: otpCode });
+    return res.data;
+  },
+
+  resendEmailOtp: async (email) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/resend-email-otp`, { email });
+    return res.data;
+  },
+
+  loginUser: async (credentials) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/login`, credentials);
+    return res.data;
+  },
+
+
+  sendPhoneOtp: async (phoneNumber) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/send-phone-otp`, { phone_number: phoneNumber });
+    return res.data;
+  },
+
+  verifyPhoneOtp: async (phoneNumber, otpCode) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/verify-phone-otp`, { phone_number: phoneNumber, otp_code: otpCode });
+    return res.data;
+  },
+
+  getActiveSessions: async () => {
+    const res = await axios.get(`${API_BASE_URL}/auth/security/sessions`);
+    return res.data;
+  },
+
+  // PDF Report Download
+  downloadPdfReport: async (query, persona) => {
+    const res = await axios.get(`${API_BASE_URL}/report/pdf`, {
+      params: { query, persona },
+      responseType: 'blob'
+    });
+    return res.data;
   }
 };
