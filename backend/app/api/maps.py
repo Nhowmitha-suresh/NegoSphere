@@ -21,10 +21,22 @@ async def get_nearby_stores(
 ):
     """
     Search nearby retail stores, wholesale bazaars, repair centers using Google Places API.
+    Returns clear message if GOOGLE_MAPS_API_KEY is not set.
     """
+    if not maps_service.is_configured:
+        return {
+            "status": "disabled",
+            "message": "Google Maps is not configured. Set GOOGLE_MAPS_API_KEY in environment variables to enable live map services.",
+            "maps_configured": False,
+            "query": query,
+            "count": 0,
+            "stores": []
+        }
+
     stores = await maps_service.search_nearby_stores(lat, lng, query, radius, type)
     return {
         "status": "success",
+        "maps_configured": True,
         "query": query,
         "center": {"lat": lat, "lng": lng},
         "count": len(stores),
@@ -41,10 +53,21 @@ async def get_directions(
 ):
     """
     Calculate real Google Maps directions, distance, and duration.
+    Returns clear message if GOOGLE_MAPS_API_KEY is not set.
     """
+    if not maps_service.is_configured:
+        return {
+            "status": "disabled",
+            "message": "Google Maps is not configured. Set GOOGLE_MAPS_API_KEY in environment variables to enable live map services.",
+            "maps_configured": False,
+            "mode": mode,
+            "route": None
+        }
+
     route = await maps_service.get_directions_and_distance(origin_lat, origin_lng, dest_lat, dest_lng, mode)
     return {
         "status": "success",
+        "maps_configured": True,
         "mode": mode,
         "route": route
     }
@@ -53,7 +76,25 @@ async def get_directions(
 async def optimize_shopping_route(req: RouteOptimizationRequest):
     """
     Multi-stop route planning optimized for Maximum Savings, Lowest Time, or Lowest Fuel Cost.
+    Returns clear message if GOOGLE_MAPS_API_KEY is not set.
     """
+    if not maps_service.is_configured:
+        return {
+            "status": "disabled",
+            "message": "Google Maps is not configured. Set GOOGLE_MAPS_API_KEY in environment variables to enable live map services.",
+            "maps_configured": False,
+            "optimization_mode": req.optimization_mode,
+            "summary": {
+                "total_stops": 0,
+                "total_distance_km": 0.0,
+                "total_estimated_time_mins": 0.0,
+                "total_potential_savings": 0.0,
+                "total_estimated_fuel_cost": 0.0,
+                "net_roi": 0.0
+            },
+            "optimized_route": []
+        }
+
     if not req.destinations:
         raise HTTPException(status_code=400, detail="At least one destination store is required.")
 
@@ -76,11 +117,11 @@ async def optimize_shopping_route(req: RouteOptimizationRequest):
             "name": dest.get("name", f"Retail Store {idx + 1}"),
             "lat": d_lat,
             "lng": d_lng,
-            "distance_km": dir_info["distance_km"],
-            "duration_mins": dir_info["duration_mins"],
+            "distance_km": dir_info["distance_km"] if dir_info else 0.0,
+            "duration_mins": dir_info["duration_mins"] if dir_info else 0.0,
             "potential_savings": savings,
-            "fuel_cost_est": round(dir_info["distance_km"] * 8.5, 2), # ~₹8.5 per km fuel
-            "efficiency_score": round((savings / max(1, dir_info["distance_km"])), 2)
+            "fuel_cost_est": round((dir_info["distance_km"] if dir_info else 0.0) * 8.5, 2),
+            "efficiency_score": round((savings / max(1, dir_info["distance_km"] if dir_info else 1)), 2)
         })
 
     # Sort based on optimization mode
@@ -97,6 +138,7 @@ async def optimize_shopping_route(req: RouteOptimizationRequest):
 
     return {
         "status": "success",
+        "maps_configured": True,
         "optimization_mode": req.optimization_mode,
         "summary": {
             "total_stops": len(ordered),

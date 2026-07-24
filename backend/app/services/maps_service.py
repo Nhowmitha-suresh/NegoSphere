@@ -6,8 +6,18 @@ from app.core.logging import logger
 GOOGLE_MAPS_BASE_URL = "https://maps.googleapis.com/maps/api"
 
 class MapsService:
+    @property
+    def is_configured(self) -> bool:
+        key = settings.GOOGLE_MAPS_API_KEY or ""
+        return bool(key.strip())
+
     def __init__(self):
-        self.api_key = settings.GOOGLE_MAPS_API_KEY
+        pass
+
+    @property
+    def api_key(self) -> str:
+        return settings.GOOGLE_MAPS_API_KEY or ""
+
 
     async def search_nearby_stores(
         self,
