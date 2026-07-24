@@ -1,5 +1,9 @@
 import os
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+load_dotenv()
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "NegoSphere"
@@ -36,9 +40,9 @@ class Settings(BaseSettings):
     SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
     SMTP_HOST: str = os.getenv("SMTP_HOST", os.getenv("EMAIL_HOST", "smtp.gmail.com"))
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", os.getenv("EMAIL_PORT", "587")))
-    SMTP_USER: str = os.getenv("SMTP_USER", os.getenv("EMAIL_USER", os.getenv("GMAIL_USER", "")))
-    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", os.getenv("EMAIL_PASSWORD", os.getenv("GMAIL_APP_PASSWORD", "")))
-    EMAIL_FROM: str = os.getenv("EMAIL_FROM", os.getenv("FROM_EMAIL", os.getenv("SMTP_FROM", "NegoSphere Security <auth@negosphere.ai>")))
+    SMTP_USER: str = os.getenv("SMTP_USER", os.getenv("EMAIL_USER", os.getenv("GMAIL_USER", "nhowmi05@gmail.com")))
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", os.getenv("EMAIL_PASSWORD", os.getenv("GMAIL_APP_PASSWORD", "vqubcpulobacpkos")))
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", os.getenv("FROM_EMAIL", os.getenv("SMTP_FROM", "NegoSphere Security <nhowmi05@gmail.com>")))
 
     
     # Web Scraping & Location Settings
@@ -47,7 +51,9 @@ class Settings(BaseSettings):
 
     
     class Config:
+        env_file = ".env"
         case_sensitive = True
 
 settings = Settings()
+
 
