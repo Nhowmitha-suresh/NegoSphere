@@ -32,7 +32,7 @@ class AgentOrchestrator:
 
         logger.info(f"[req_id={req_id}] Executing NegoSphere 8-agent pipeline for query: '{query}'")
 
-        # Step 1: Product Agent
+        # Step 1: Product Agent & Real-Time Market Intelligence Data Ingestion
         try:
             product_info = await product_agent.process(query)
             logger.info(f"[Agent 1 Product] Identified: {product_info.get('name')} ({product_info.get('brand')})")
@@ -46,22 +46,56 @@ class AgentOrchestrator:
                 "keywords": [query.strip()]
             }
 
-        # Step 2: Price Collection Agent
+        # Step 2: Real-Time Market Intelligence Engine (Live Retailers & Wholesale Scraper)
         try:
-            price_data = await price_collection_agent.process(query, product_info)
-            logger.info(f"[Agent 2 Collection] Retreived {len(price_data.get('vendors', []))} vendor prices")
-        except Exception as e:
-            logger.error(f"[Agent 2 Collection] Error: {e}. Using fallback.")
+            from app.services.market_intelligence.engine import market_engine
+            market_intel = await market_engine.get_market_intelligence(query)
+            
+            # Map normalized offers into price_data
             price_data = {
                 "query": query,
                 "product_name": product_info.get("name", query),
-                "base_mrp": 10000.0,
-                "vendors": [{"vendor_name": "Retail Store", "price": 9500.0}]
+                "base_mrp": market_intel["metrics"]["highest_price"],
+                "vendors": [
+                    {
+                        "vendor_name": o["vendor_name"],
+                        "price": o["current_price"],
+                        "mrp": o["mrp"],
+                        "discount_pct": o["discount_pct"],
+                        "rating": o["rating"],
+                        "review_count": o["review_count"],
+                        "in_stock": o["in_stock"],
+                        "scraped_url": o["scraped_url"]
+                    }
+                    for o in market_intel["offers"]
+                ]
             }
+            logger.info(f"[Agent 2 Collection] Retrieved {len(price_data['vendors'])} live vendor prices from {market_intel['scraper_report']['sources_successful']} sources.")
+        except Exception as e:
+            logger.error(f"[Agent 2 Collection] Market Intelligence Error: {e}. Falling back to default collection.")
+            price_data = await price_collection_agent.process(query, product_info)
+            market_intel = None
 
         # Step 3: Price Analysis Agent
         try:
-            analysis = await price_analysis_agent.process(price_data)
+            if market_intel and "metrics" in market_intel:
+                m = market_intel["metrics"]
+                analysis = {
+                    "min_price": m["lowest_price"],
+                    "max_price": m["highest_price"],
+                    "avg_price": m["average_price"],
+                    "median_price": m["median_price"],
+                    "variance": round(m["highest_price"] - m["lowest_price"], 2),
+                    "recommended_target_price": m["target_recommended_price"],
+                    "market_spread_pct": round(((m["highest_price"] - m["lowest_price"]) / max(1, m["average_price"])) * 100, 1),
+                    "estimated_savings": m["potential_savings_val"],
+                    "lowest_seller": m["lowest_seller"],
+                    "cheapest_store": m["cheapest_store"],
+                    "best_cashback": m["best_cashback"],
+                    "best_exchange": m["best_exchange"]
+                }
+            else:
+                analysis = await price_analysis_agent.process(price_data)
             logger.info(f"[Agent 3 Analysis] Target price: ₹{analysis.get('recommended_target_price')}")
         except Exception as e:
             logger.error(f"[Agent 3 Analysis] Error: {e}. Using fallback.")
@@ -72,11 +106,11 @@ class AgentOrchestrator:
                 "avg_price": min_p * 1.05,
                 "median_price": min_p * 1.05,
                 "variance": 0.0,
-                "std_dev": 0.0,
                 "recommended_target_price": round(min_p * 0.94, 2),
                 "market_spread_pct": 10.0,
-                "distribution_points": []
+                "estimated_savings": round(min_p * 0.06, 2)
             }
+
 
         # Step 4: Negotiation Opportunity Agent
         try:
@@ -186,7 +220,9 @@ class AgentOrchestrator:
             "coach": coach_data,
             "multi_lang": multi_lang_data,
             "simulation": simulation_data,
-            "summary": summary_data
+            "summary": summary_data,
+            "market_intelligence": market_intel
         }
+
 
 orchestrator = AgentOrchestrator()

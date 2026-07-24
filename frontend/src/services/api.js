@@ -58,11 +58,22 @@ export const api = {
     return res.data.data;
   },
 
-  // Collect vendor prices (Agent 2)
-  collectPrices: async (query) => {
-    const res = await apiClient.get('/api/prices/collect', { params: { query } });
-    return res.data.data;
+  // Collect real-time live vendor prices & market intelligence (Agent 2)
+  collectPrices: async (query, forceRefresh = false) => {
+    const res = await apiClient.get('/api/prices/collect', {
+      params: { query, force_refresh: forceRefresh }
+    });
+    return res.data;
   },
+
+  // Get live market intelligence metrics & source report
+  getLiveMarketIntelligence: async (query, forceRefresh = false) => {
+    const res = await apiClient.get('/api/prices/live-intelligence', {
+      params: { query, force_refresh: forceRefresh }
+    });
+    return res.data;
+  },
+
 
   // Analyze price statistical metrics (Agent 3 & 4)
   analyzePrices: async (query) => {
