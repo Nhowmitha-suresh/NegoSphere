@@ -32,7 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers
+# Primary API Routers (with /api prefix)
 app.include_router(products.router, prefix=settings.API_PREFIX)
 app.include_router(prices.router, prefix=settings.API_PREFIX)
 app.include_router(analyze.router, prefix=settings.API_PREFIX)
@@ -42,6 +42,17 @@ app.include_router(history.router, prefix=settings.API_PREFIX)
 app.include_router(report.router, prefix=settings.API_PREFIX)
 app.include_router(auth.router, prefix=settings.API_PREFIX)
 app.include_router(maps.router, prefix=settings.API_PREFIX)
+
+# Fallback Root Routers (without prefix) for legacy/direct client compatibility
+app.include_router(auth.router)
+app.include_router(report.router)
+app.include_router(products.router)
+app.include_router(prices.router)
+app.include_router(analyze.router)
+app.include_router(negotiate.router)
+app.include_router(simulate.router)
+app.include_router(history.router)
+app.include_router(maps.router)
 
 
 @app.get("/")
@@ -63,7 +74,6 @@ async def health_check():
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION
     }
-
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
