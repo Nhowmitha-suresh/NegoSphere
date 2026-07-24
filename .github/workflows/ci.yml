@@ -29,7 +29,7 @@ jobs:
       - name: Run Pytest Suite
         run: |
           cd backend
-          pytest test_pipeline.py -v
+          pytest -v
 
   frontend-build:
     name: Build React Vite Application
@@ -55,3 +55,15 @@ jobs:
         run: |
           cd frontend
           npm run build
+
+  docker-validation:
+    name: Validate Docker Compose Production Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose Build
+        run: |
+          docker compose config
+
