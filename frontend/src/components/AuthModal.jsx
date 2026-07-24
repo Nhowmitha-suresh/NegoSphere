@@ -65,6 +65,28 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     }
   };
 
+  const handleSocialLogin = async (provider) => {
+    playGlassTap();
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await api.oauthLogin(provider, email);
+      if (res.status === 'success') {
+        onAuthSuccess({
+          id: res.user?.id || 'usr-oauth',
+          name: res.user?.name || `${provider} Executive`,
+          email: res.user?.email || email,
+          role: res.user?.role || 'Enterprise User'
+        });
+      }
+    } catch (err) {
+      const detail = err.response?.data?.detail || `${provider} authentication failed. Please try again.`;
+      setErrorMsg(detail);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-[#3F3024]/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       
@@ -138,13 +160,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               <button
                 key={provider}
                 type="button"
-                onClick={handleSubmit}
+                onClick={() => handleSocialLogin(provider)}
                 className="py-2 px-3 rounded-xl border border-[#7A5C45]/20 bg-white/80 hover:bg-white text-[#3F3024] flex items-center justify-center space-x-1.5 transition shadow-sm"
               >
                 <span>{provider}</span>
               </button>
             ))}
           </div>
+
 
           {/* Error Message Alert */}
           {errorMsg && (

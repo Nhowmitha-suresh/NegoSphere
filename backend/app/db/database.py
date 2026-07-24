@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy import text
 from app.config import settings
 
 # For sqlite in async mode, convert sqlite:// to sqlite+aiosqlite:// if needed
@@ -33,5 +34,29 @@ async def get_db():
             await session.close()
 
 async def init_db():
+    import app.db.models
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Check SQLite table columns and add missing ones dynamically
+        if "sqlite" in db_url:
+            res = await conn.execute(text("PRAGMA table_info(users)"))
+            existing_cols = {row[1] for row in res.fetchall()}
+            
+            new_columns = [
+                ("first_name", "VARCHAR"),
+                ("last_name", "VARCHAR"),
+                ("country", "VARCHAR DEFAULT 'India'"),
+                ("role", "VARCHAR DEFAULT 'Enterprise User'"),
+                ("is_email_verified", "BOOLEAN DEFAULT 0"),
+                ("is_phone_verified", "BOOLEAN DEFAULT 0"),
+                ("is_mfa_enabled", "BOOLEAN DEFAULT 0"),
+                ("updated_at", "DATETIME")
+            ]
+            
+            for col_name, col_def in new_columns:
+                if col_name not in existing_cols:
+                    try:
+                        await conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"))
+                    except Exception:
+                        pass

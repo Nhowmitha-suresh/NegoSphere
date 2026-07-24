@@ -103,6 +103,12 @@ export const api = {
     return res.data;
   },
 
+  oauthLogin: async (provider, email) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/oauth/${provider.toLowerCase()}`, { email });
+    return res.data;
+  },
+
+
 
   sendPhoneOtp: async (phoneNumber) => {
     const res = await axios.post(`${API_BASE_URL}/auth/send-phone-otp`, { phone_number: phoneNumber });
