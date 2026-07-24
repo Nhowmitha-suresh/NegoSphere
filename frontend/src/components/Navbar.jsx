@@ -19,7 +19,9 @@ export default function Navbar({ activeTab, setActiveTab, isLiveMode, xp = 350, 
         <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('search')}>
           <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-brand-600 via-purple-600 to-emerald-400 p-0.5 shadow-lg shadow-brand-500/20 hover:scale-105 transition">
             <div className="w-full h-full bg-[#0B0F19] rounded-[10px] flex items-center justify-center text-xl">
-              🦉
+              <div className="w-8 h-8 rounded-xl bg-[#3F3024] text-[#C9A76A] font-serif font-bold text-xs flex items-center justify-center shadow-md">
+                NS
+              </div>
             </div>
           </div>
           <div>

@@ -27,17 +27,6 @@ export function DuolingoHeaderBar({ xp = 350, streak = 5, level = 'Bazaar Master
   );
 }
 
-export function DuolingoMascotTip({ message = "Pro Tip: Always state competitor prices first to anchor the seller!", title = "NegoOwl Coach Says 🦉" }) {
-  return (
-    <div className="glass-panel p-4 rounded-2xl border border-brand-500/40 bg-gradient-to-r from-brand-950/60 via-purple-950/40 to-slate-900 flex items-start space-x-3 shadow-lg hover:scale-[1.01] transition duration-200">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-400 to-brand-500 p-0.5 shrink-0 shadow-md animate-float">
-        <div className="w-full h-full bg-[#0B0F19] rounded-[14px] flex items-center justify-center text-2xl">
-          🦉
-        </div>
-      </div>
-      <div className="space-y-1">
-        <div className="flex items-center space-x-2">
-          <span className="text-xs font-black text-brand-400 uppercase tracking-wider">{title}</span>
           <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
             +50 XP Earned
           </span>

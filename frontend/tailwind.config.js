@@ -8,40 +8,32 @@ export default {
   theme: {
     extend: {
       colors: {
-        dark: {
-          bg: '#0B0F19',
-          card: 'rgba(17, 24, 39, 0.75)',
-          border: 'rgba(255, 255, 255, 0.08)',
-          accent: '#6366F1',
+        cream: {
+          bg: '#FAF7F2',
+          card: '#F6F3EE',
+          glass: 'rgba(255, 255, 255, 0.55)',
         },
-        brand: {
-          50: '#EEF2FF',
-          100: '#E0E7FF',
-          500: '#6366F1',
-          600: '#4F46E5',
-          700: '#4338CA',
-        },
-        emerald: {
-          500: '#10B981',
-          400: '#34D399',
+        luxury: {
+          brown: '#5B4636',
+          dark: '#34271D',
+          gold: '#C6A164',
+          softGold: '#D8B982',
+          text: '#2F2F2F',
+          border: 'rgba(91, 70, 54, 0.10)',
         }
       },
       fontFamily: {
-        sans: ['Inter', 'Outfit', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
+        serif: ['Playfair Display', 'Georgia', 'serif'],
       },
-      animation: {
-        'pulse-glow': 'pulseGlow 2s infinite ease-in-out',
-        'float': 'float 4s ease-in-out infinite',
+      boxShadow: {
+        'luxury': '0 20px 60px rgba(0, 0, 0, 0.08)',
+        'luxury-sm': '0 8px 30px rgba(91, 70, 54, 0.08)',
+        'luxury-gold': '0 10px 30px rgba(198, 161, 100, 0.25)',
       },
-      keyframes: {
-        pulseGlow: {
-          '0%, 100%': { boxShadow: '0 0 15px rgba(99, 102, 241, 0.3)' },
-          '50%': { boxShadow: '0 0 30px rgba(99, 102, 241, 0.7)' },
-        },
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-6px)' },
-        }
+      borderRadius: {
+        '3xl': '24px',
+        '4xl': '32px',
       }
     },
   },
