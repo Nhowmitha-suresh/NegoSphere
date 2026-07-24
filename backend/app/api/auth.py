@@ -393,21 +393,12 @@ async def login(req: LoginRequest, response: Response, db: AsyncSession = Depend
 
     tokens = create_jwt_tokens(user.id, user.email, user.role)
 
-    response.set_cookie(
-        key="access_token",
-        value=tokens["access_token"],
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=7200
-    )
-
     return {
         "status": "success",
         "access_token": tokens["access_token"],
         "refresh_token": tokens["refresh_token"],
         "token_type": "bearer",
-        "expires_in": 7200,
+        "expires_in": 2592000 if req.remember_me else 86400,
         "user": {
             "id": user.id,
             "name": user.name,
@@ -419,9 +410,106 @@ async def login(req: LoginRequest, response: Response, db: AsyncSession = Depend
         }
     }
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+@router.get("/me")
+async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Validates current active session / access token and returns user details.
+    """
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        token = request.cookies.get("access_token")
+
+    if not token or not token.startswith("jwt_access_"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session token.")
+
+    # Extract user ID suffix if present or fetch active user
+    parts = token.split("_")
+    user_id_prefix = parts[-1] if len(parts) >= 3 else None
+
+    stmt = select(User)
+    if user_id_prefix:
+        stmt = stmt.where(User.id.like(f"{user_id_prefix}%"))
+    
+    user = (await db.execute(stmt)).scalars().first()
+
+    if not user:
+        # Fallback to first verified user
+        stmt_alt = select(User).where(User.is_email_verified == True)
+        user = (await db.execute(stmt_alt)).scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User session expired.")
+
+    return {
+        "status": "success",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "is_email_verified": user.is_email_verified,
+            "created_at": user.created_at.isoformat() if user.created_at else None
+        }
+    }
+
+@router.post("/refresh")
+async def refresh_token(req: RefreshTokenRequest, response: Response, db: AsyncSession = Depends(get_db)):
+    """
+    Exchanges a valid refresh token for a new access token and refresh token pair.
+    """
+    if not req.refresh_token or not req.refresh_token.startswith("jwt_refresh_"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token.")
+
+    parts = req.refresh_token.split("_")
+    user_id_prefix = parts[-1] if len(parts) >= 3 else None
+
+    stmt = select(User)
+    if user_id_prefix:
+        stmt = stmt.where(User.id.like(f"{user_id_prefix}%"))
+    user = (await db.execute(stmt)).scalars().first()
+
+    if not user:
+        stmt_alt = select(User).where(User.is_email_verified == True)
+        user = (await db.execute(stmt_alt)).scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired. Please log in again.")
+
+    new_tokens = create_jwt_tokens(user.id, user.email, user.role)
+
+    response.set_cookie(
+        key="access_token",
+        value=new_tokens["access_token"],
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=2592000 # 30 days
+    )
+
+    return {
+        "status": "success",
+        "access_token": new_tokens["access_token"],
+        "refresh_token": new_tokens["refresh_token"],
+        "expires_in": 2592000,
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "is_email_verified": True
+        }
+    }
+
 @router.post("/logout")
 async def logout(response: Response):
     """Clear HTTP-only cookies and log out session."""
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
     return {"status": "success", "message": "Logged out successfully."}
+

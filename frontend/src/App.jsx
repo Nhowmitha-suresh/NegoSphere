@@ -29,22 +29,32 @@ import ProfileView from './components/ProfileView';
 import SettingsView from './components/SettingsView';
 
 // API Service & Sound Utils
-import { api } from './services/api';
+import { api, storage } from './services/api';
 import { playGlassTap } from './utils/audio';
 
 export default function App() {
   // Global Screen State: 'splash' | 'welcome' | 'auth' | 'verification' | 'onboarding' | 'location_permission' | 'workspace'
   const [screenState, setScreenState] = useState(() => {
+    const storedUser = storage.getUser();
+    const token = storage.getAccessToken();
+    if (token || storedUser) {
+      return 'workspace'; // Direct navigation to workspace dashboard if authenticated!
+    }
     const hasSeenSplash = sessionStorage.getItem('negosphere_splash_seen');
     return hasSeenSplash === 'true' ? 'welcome' : 'splash';
   });
 
   const handleSplashComplete = () => {
     sessionStorage.setItem('negosphere_splash_seen', 'true');
-    setScreenState('welcome');
+    const storedUser = storage.getUser();
+    const token = storage.getAccessToken();
+    if (token || storedUser) {
+      setScreenState('workspace');
+    } else {
+      setScreenState('welcome');
+    }
   };
 
-  
   // Workspace Tab State
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -54,12 +64,13 @@ export default function App() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [userLocation, setUserLocation] = useState({ lat: 28.5494, lng: 77.2520 });
 
-
   // User State
-  const [user, setUser] = useState({
-    name: 'Alexander Vance',
-    email: 'executive@company.com',
-    role: 'Enterprise AI Procurement Director'
+  const [user, setUser] = useState(() => {
+    return storage.getUser() || {
+      name: 'Alexander Vance',
+      email: 'executive@company.com',
+      role: 'Enterprise AI Procurement Director'
+    };
   });
 
   // Pipeline Execution State
@@ -67,10 +78,50 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('Samsung S24 Ultra');
 
-  // Auto-run initial API pipeline query on mount
+  // Auto-run initial API pipeline query and verify session on mount
   useEffect(() => {
     runPipeline('Samsung S24 Ultra');
+    
+    // Check & validate session with backend
+    const checkSession = async () => {
+      const token = storage.getAccessToken();
+      if (token) {
+        const activeUser = await api.fetchCurrentUser();
+        if (activeUser) {
+          setUser(activeUser);
+          setScreenState('workspace');
+        }
+      }
+    };
+    checkSession();
   }, []);
+
+  // Listen for 401 unauthorized session expiration events
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      storage.clearSession();
+      setUser({
+        name: 'Alexander Vance',
+        email: 'executive@company.com',
+        role: 'Enterprise AI Procurement Director'
+      });
+      setScreenState('auth');
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
+  const handleLogout = async () => {
+    playGlassTap();
+    await api.logout();
+    setUser({
+      name: 'Alexander Vance',
+      email: 'executive@company.com',
+      role: 'Enterprise AI Procurement Director'
+    });
+    setScreenState('welcome');
+  };
+
 
   // Global Keyboard Navigation Listeners (Escape -> Dashboard, Cmd+K -> Universal Search)
   useEffect(() => {
@@ -197,8 +248,9 @@ export default function App() {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             user={user}
-            onLogout={() => setScreenState('welcome')}
+            onLogout={handleLogout}
           />
+
 
           {/* Main Content View Container */}
           <div className="flex-1 flex flex-col min-w-0">

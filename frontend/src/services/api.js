@@ -3,13 +3,44 @@ import axios from 'axios';
 // Render backend URL fallback
 const RENDER_BACKEND_URL = 'https://negosphere-backend.onrender.com';
 
+// Storage keys
+const TOKEN_KEY = 'negosphere_access_token';
+const REFRESH_KEY = 'negosphere_refresh_token';
+const USER_KEY = 'negosphere_user';
+
+// Token Storage Helpers
+export const storage = {
+  getAccessToken: () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY),
+  getRefreshToken: () => localStorage.getItem(REFRESH_KEY) || sessionStorage.getItem(REFRESH_KEY),
+  getUser: () => {
+    try {
+      const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+  saveSession: (accessToken, refreshToken, user, rememberMe = true) => {
+    const store = rememberMe ? localStorage : sessionStorage;
+    if (accessToken) store.setItem(TOKEN_KEY, accessToken);
+    if (refreshToken) store.setItem(REFRESH_KEY, refreshToken);
+    if (user) store.setItem(USER_KEY, JSON.stringify(user));
+  },
+  clearSession: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_KEY);
+    sessionStorage.removeItem(USER_KEY);
+  }
+};
+
 // Determine base URL dynamically
 const getBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
   let url = (envUrl && envUrl.trim() !== '') ? envUrl.trim() : RENDER_BACKEND_URL;
-  // Strip trailing slashes
   url = url.replace(/\/+$/, '');
-  // If user provided URL ending in /api, trim it so we add /api/ cleanly in endpoints/interceptor
   if (url.endsWith('/api')) {
     url = url.slice(0, -4);
   }
@@ -24,7 +55,7 @@ export const apiClient = axios.create({
   }
 });
 
-// Request Interceptor: Automatically ensures `/api` prefix is prepended to all requests
+// Request Interceptor: Automatically ensures `/api` prefix & attaches Bearer token
 apiClient.interceptors.request.use((config) => {
   if (config.url && !config.url.startsWith('http://') && !config.url.startsWith('https://')) {
     let path = config.url.startsWith('/') ? config.url : `/${config.url}`;
@@ -33,13 +64,151 @@ apiClient.interceptors.request.use((config) => {
     }
     config.url = path;
   }
+  const token = storage.getAccessToken();
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
   return config;
 }, (error) => {
   return Promise.reject(error);
 });
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Response Interceptor: Seamless automatic refresh on 401 Unauthorized
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers['Authorization'] = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        }).catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = storage.getRefreshToken();
+      if (refreshToken) {
+        try {
+          const res = await apiClient.post('/api/auth/refresh', { refresh_token: refreshToken });
+          if (res.data && res.data.access_token) {
+            const newToken = res.data.access_token;
+            const newRefreshToken = res.data.refresh_token || refreshToken;
+            const user = res.data.user || storage.getUser();
+            storage.saveSession(newToken, newRefreshToken, user, true);
+            apiClient.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+            processQueue(null, newToken);
+            isRefreshing = false;
+            return apiClient(originalRequest);
+          }
+        } catch (refreshErr) {
+          processQueue(refreshErr, null);
+          storage.clearSession();
+          isRefreshing = false;
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+          return Promise.reject(refreshErr);
+        }
+      } else {
+        storage.clearSession();
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const api = {
-  // Execute full 8-agent pipeline
+  // Authentication & Session Endpoints
+  login: async (email, password, rememberMe = true) => {
+    const res = await apiClient.post('/api/auth/login', { email, password, remember_me: rememberMe });
+    if (res.data && res.data.access_token) {
+      storage.saveSession(res.data.access_token, res.data.refresh_token, res.data.user, rememberMe);
+    }
+    return res.data;
+  },
+
+  loginUser: async ({ email, password, remember_me = true }) => {
+    return api.login(email, password, remember_me);
+  },
+
+  register: async (firstName, lastName, email, password, country, acceptTerms) => {
+    const res = await apiClient.post('/api/auth/register', {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      password,
+      country,
+      accept_terms: acceptTerms
+    });
+    return res.data;
+  },
+
+  registerUser: async ({ first_name, last_name, email, password, country = "India", accept_terms = true }) => {
+    return api.register(first_name, last_name, email, password, country, accept_terms);
+  },
+
+
+  verifyOtp: async (email, otpCode) => {
+    const res = await apiClient.post('/api/auth/verify-email-otp', { email, otp_code: otpCode });
+    if (res.data && res.data.access_token) {
+      storage.saveSession(res.data.access_token, res.data.refresh_token, res.data.user, true);
+    }
+    return res.data;
+  },
+
+  oauthLogin: async (provider, email, name) => {
+    const res = await apiClient.post(`/api/auth/oauth/${provider}`, { email, name });
+    if (res.data && res.data.access_token) {
+      storage.saveSession(res.data.access_token, res.data.refresh_token, res.data.user, true);
+    }
+    return res.data;
+  },
+
+  fetchCurrentUser: async () => {
+    try {
+      const res = await apiClient.get('/api/auth/me');
+      if (res.data && res.data.user) {
+        storage.saveSession(storage.getAccessToken(), storage.getRefreshToken(), res.data.user, true);
+        return res.data.user;
+      }
+    } catch (e) {
+      console.warn("fetchCurrentUser session invalid:", e);
+      storage.clearSession();
+      return null;
+    }
+    return null;
+  },
+
+  logout: async () => {
+    try {
+      await apiClient.post('/api/auth/logout');
+    } catch (e) {
+      console.warn("Logout endpoint notice:", e);
+    } finally {
+      storage.clearSession();
+    }
+  },
+
+  // Pipeline & Intelligence Endpoints
   runFullPipeline: async (query, persona = 'Assertive', language = 'English', sellerPersonality = 'Flexible') => {
     try {
       const response = await apiClient.get('/api/report/pipeline', {
@@ -52,13 +221,11 @@ export const api = {
     }
   },
 
-  // Parse product details (Agent 1)
   parseProduct: async (query) => {
     const res = await apiClient.get('/api/products/parse', { params: { query } });
     return res.data.data;
   },
 
-  // Collect real-time live vendor prices & market intelligence (Agent 2)
   collectPrices: async (query, forceRefresh = false) => {
     const res = await apiClient.get('/api/prices/collect', {
       params: { query, force_refresh: forceRefresh }
@@ -66,7 +233,6 @@ export const api = {
     return res.data;
   },
 
-  // Get live market intelligence metrics & source report
   getLiveMarketIntelligence: async (query, forceRefresh = false) => {
     const res = await apiClient.get('/api/prices/live-intelligence', {
       params: { query, force_refresh: forceRefresh }
@@ -74,14 +240,11 @@ export const api = {
     return res.data;
   },
 
-
-  // Analyze price statistical metrics (Agent 3 & 4)
   analyzePrices: async (query) => {
     const res = await apiClient.get('/api/analyze/', { params: { query } });
     return res.data.data;
   },
 
-  // Generate negotiation strategy (Agent 5 & 6)
   generateNegotiation: async (query, persona, language) => {
     const res = await apiClient.get('/api/negotiate/', {
       params: { query, persona, language }
@@ -89,7 +252,6 @@ export const api = {
     return res.data.data;
   },
 
-  // Run Agent-vs-Agent Showdown (Agent 7)
   runSimulation: async (query, buyerPersona, sellerPersonality) => {
     const res = await apiClient.get('/api/simulate/', {
       params: { query, buyer_persona: buyerPersona, seller_personality: sellerPersonality }
@@ -97,88 +259,14 @@ export const api = {
     return res.data.data;
   },
 
-  // Fetch past negotiations and bookmarks
   getHistory: async () => {
     const res = await apiClient.get('/api/history/');
     return res.data.data;
   },
 
-  // Real Google Maps & Location API endpoints
   getNearbyStores: async (lat, lng, query = 'electronics', radius = 10000) => {
     const res = await apiClient.get('/api/maps/nearby-stores', {
       params: { lat, lng, query, radius }
-    });
-    return res.data;
-  },
-
-  getDirections: async (originLat, originLng, destLat, destLng, mode = 'driving') => {
-    const res = await apiClient.get('/api/maps/directions', {
-      params: { origin_lat: originLat, origin_lng: originLng, dest_lat: destLat, dest_lng: destLng, mode }
-    });
-    return res.data.route;
-  },
-
-  optimizeShoppingRoute: async (originLat, originLng, destinations, optimizationMode = 'max_savings') => {
-    const res = await apiClient.post('/api/maps/optimize-shopping-route', {
-      origin_lat: originLat,
-      origin_lng: originLng,
-      destinations,
-      optimization_mode: optimizationMode
-    });
-    return res.data;
-  },
-
-  // Auth endpoints
-  registerUser: async (userData) => {
-    const res = await apiClient.post('/api/auth/register', userData);
-    return res.data;
-  },
-
-  verifyEmailOtp: async (email, otpCode) => {
-    const res = await apiClient.post('/api/auth/verify-email-otp', { email, otp_code: otpCode });
-    return res.data;
-  },
-
-  resendEmailOtp: async (email) => {
-    const res = await apiClient.post('/api/auth/resend-email-otp', { email });
-    return res.data;
-  },
-
-  loginUser: async (credentials) => {
-    const res = await apiClient.post('/api/auth/login', credentials);
-    return res.data;
-  },
-
-  oauthLogin: async (provider, email) => {
-    const res = await apiClient.post(`/api/auth/oauth/${provider.toLowerCase()}`, { email });
-    return res.data;
-  },
-
-  logoutUser: async () => {
-    const res = await apiClient.post('/api/auth/logout');
-    return res.data;
-  },
-
-  sendPhoneOtp: async (phoneNumber) => {
-    const res = await apiClient.post('/api/auth/send-phone-otp', { phone_number: phoneNumber });
-    return res.data;
-  },
-
-  verifyPhoneOtp: async (phoneNumber, otpCode) => {
-    const res = await apiClient.post('/api/auth/verify-phone-otp', { phone_number: phoneNumber, otp_code: otpCode });
-    return res.data;
-  },
-
-  getActiveSessions: async () => {
-    const res = await apiClient.get('/api/auth/security/sessions');
-    return res.data;
-  },
-
-  // PDF Report Download
-  downloadPdfReport: async (query, persona) => {
-    const res = await apiClient.get('/api/report/pdf', {
-      params: { query, persona },
-      responseType: 'blob'
     });
     return res.data;
   }
