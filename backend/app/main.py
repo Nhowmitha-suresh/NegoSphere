@@ -13,8 +13,15 @@ async def lifespan(app: FastAPI):
     # Initialize structured logging & database tables on startup
     setup_logging()
     logger.info("Initializing NegoSphere Backend Service...")
+    
+    # Startup logging for SMTP configuration (without printing password/secrets)
+    smtp_user_masked = f"{settings.SMTP_USER[:3]}***@{settings.SMTP_USER.split('@')[-1]}" if "@" in settings.SMTP_USER else "configured"
+    has_smtp_pass = "Configured (16 chars)" if settings.SMTP_PASSWORD else "Not Set"
+    logger.info(f"📧 [SMTP STARTUP CONFIG] Host: {settings.SMTP_HOST} | Port: {settings.SMTP_PORT} | User: {smtp_user_masked} | Pass Key: {has_smtp_pass} | From: {settings.EMAIL_FROM}")
+
     await init_db()
     yield
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

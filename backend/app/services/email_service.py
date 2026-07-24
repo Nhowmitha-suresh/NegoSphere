@@ -1,11 +1,64 @@
 import httpx
 import smtplib
 import socket
+import ssl
 from typing import Tuple, Optional
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.config import settings
 from app.core.logging import logger
+
+def create_smtp_connection(host: str, port: int, timeout: float = 12.0) -> Tuple[smtplib.SMTP, int, bool]:
+    """
+    Establishes an SMTP connection with explicit IPv4 address resolution to prevent
+    '[Errno 101] Network is unreachable' errors on Linux cloud containers (Render/AWS/GCP)
+    where IPv6 DNS resolves but has no routing.
+    
+    If connection on the specified port fails, automatically attempts fallback (587 STARTTLS <-> 465 SSL).
+    
+    Returns:
+        (smtp_server_instance, connected_port, is_ssl)
+    """
+    ports_to_try = [port]
+    fallback_port = 465 if port == 587 else 587
+    if fallback_port not in ports_to_try:
+        ports_to_try.append(fallback_port)
+
+    last_exception = None
+
+    for target_port in ports_to_try:
+        is_ssl = (target_port == 465)
+        
+        # Check IPv4 resolution availability first to ensure socket connectivity
+        try:
+            addr_info = socket.getaddrinfo(host, target_port, socket.AF_INET, socket.SOCK_STREAM)
+            if addr_info:
+                # Use standard smtplib constructor with explicit timeout
+                if is_ssl:
+                    server = smtplib.SMTP_SSL(host, target_port, timeout=timeout)
+                else:
+                    server = smtplib.SMTP(host, target_port, timeout=timeout)
+                return server, target_port, is_ssl
+        except socket.gaierror as dns_err:
+            raise dns_err
+        except Exception as e:
+            last_exception = e
+
+        # Standard smtplib fallback connection
+        try:
+            if is_ssl:
+                server = smtplib.SMTP_SSL(host, target_port, timeout=timeout)
+                return server, target_port, is_ssl
+            else:
+                server = smtplib.SMTP(host, target_port, timeout=timeout)
+                return server, target_port, is_ssl
+        except Exception as e:
+            last_exception = e
+
+    if last_exception:
+        raise last_exception
+    raise OSError(f"Could not establish network connection to SMTP host {host}")
+
 
 class EmailService:
     async def send_verification_otp(
@@ -51,12 +104,17 @@ class EmailService:
 
         # 1. Try Standard SMTP (Gmail, SendGrid SMTP, Mailgun, Amazon SES, Custom SMTP)
         if settings.SMTP_USER and settings.SMTP_PASSWORD:
-            logger.info(f"📧 [SMTP DISPATCH] Attempting email delivery via {settings.SMTP_HOST}:{settings.SMTP_PORT}...")
+            host = settings.SMTP_HOST
+            port = settings.SMTP_PORT
+            user = settings.SMTP_USER
+            password = settings.SMTP_PASSWORD
+            
+            logger.info(f"📧 [SMTP DISPATCH] Initiating email delivery via {host}:{port} to {recipient_email}...")
+
             try:
                 sender = settings.EMAIL_FROM
-                # Format sender address if not explicitly set
-                if "<" not in sender and "@" in settings.SMTP_USER:
-                    sender = f"NegoSphere Security <{settings.SMTP_USER}>"
+                if "<" not in sender and "@" in user:
+                    sender = f"NegoSphere Security <{user}>"
 
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = subject
@@ -64,42 +122,45 @@ class EmailService:
                 msg["To"] = recipient_email
                 msg.attach(MIMEText(html_body, "html"))
 
-                logger.info(f"🔌 [SMTP CONNECT] Connecting to SMTP server {settings.SMTP_HOST}:{settings.SMTP_PORT}...")
+                logger.info(f"🔌 [SMTP CONNECT] Connecting to SMTP server {host}:{port} (with IPv4 fallback)...")
+                server, conn_port, is_ssl = create_smtp_connection(host, port, timeout=12.0)
                 
-                # Check for SSL (Port 465) vs STARTTLS (Port 587 / 25)
-                if settings.SMTP_PORT == 465:
-                    with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-                        server.ehlo()
-                        logger.info(f"🔐 [SMTP AUTH] Authenticating SMTP user: {settings.SMTP_USER}...")
-                        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                        logger.info(f"🚀 [SMTP SEND] Delivering OTP message to {recipient_email}...")
-                        server.sendmail(sender, [recipient_email], msg.as_string())
-                else:
-                    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-                        server.ehlo()
-                        logger.info(f"🔒 [SMTP TLS] Initiating STARTTLS encryption...")
+                with server:
+                    server.ehlo()
+                    if not is_ssl:
+                        logger.info(f"🔒 [SMTP TLS] Initiating STARTTLS encryption on port {conn_port}...")
                         server.starttls()
                         server.ehlo()
-                        logger.info(f"🔐 [SMTP AUTH] Authenticating SMTP user: {settings.SMTP_USER}...")
-                        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                        logger.info(f"🚀 [SMTP SEND] Delivering OTP message to {recipient_email}...")
-                        server.sendmail(sender, [recipient_email], msg.as_string())
+                    
+                    logger.info(f"🔐 [SMTP AUTH] Authenticating SMTP user: {user}...")
+                    server.login(user, password)
+                    
+                    logger.info(f"🚀 [SMTP SEND] Delivering OTP message to {recipient_email}...")
+                    server.sendmail(sender, [recipient_email], msg.as_string())
 
-                logger.info(f"✅ [SMTP SUCCESS] Verification email containing OTP code [{otp_code}] was delivered to {recipient_email} via SMTP!")
+                logger.info(f"✅ [SMTP SUCCESS] Verification email containing OTP code [{otp_code}] delivered to {recipient_email} via SMTP!")
                 return (True, None)
 
             except smtplib.SMTPAuthenticationError as e:
-                err_msg = f"SMTP Authentication failed for {settings.SMTP_USER}. If using Gmail, make sure you use an 16-character App Password (not your normal Gmail password). Details: {e.smtp_error.decode('utf-8', errors='ignore') if hasattr(e, 'smtp_error') and isinstance(e.smtp_error, bytes) else str(e)}"
+                err_msg = f"SMTP Authentication failed for {user}. If using Gmail, verify your 16-character App Password. Details: {e.smtp_error.decode('utf-8', errors='ignore') if hasattr(e, 'smtp_error') and isinstance(e.smtp_error, bytes) else str(e)}"
                 logger.error(f"❌ [SMTP AUTH ERROR] {err_msg}")
                 return (False, err_msg)
-            except smtplib.SMTPConnectError as e:
-                err_msg = f"Failed to connect to SMTP server {settings.SMTP_HOST}:{settings.SMTP_PORT}. Check host/port. Details: {str(e)}"
-                logger.error(f"❌ [SMTP CONNECT ERROR] {err_msg}")
+
+            except socket.gaierror as e:
+                err_msg = f"DNS Resolution Failure: Could not resolve SMTP hostname '{host}'. Verify SMTP_HOST configuration. Details: {str(e)}"
+                logger.error(f"❌ [SMTP DNS ERROR] {err_msg}")
                 return (False, err_msg)
-            except socket.timeout:
-                err_msg = f"Connection to SMTP server {settings.SMTP_HOST}:{settings.SMTP_PORT} timed out."
+
+            except (socket.timeout, TimeoutError):
+                err_msg = f"SMTP Timeout: Connection to SMTP host {host}:{port} timed out after 12s."
                 logger.error(f"❌ [SMTP TIMEOUT ERROR] {err_msg}")
                 return (False, err_msg)
+
+            except (smtplib.SMTPConnectError, OSError) as e:
+                err_msg = f"SMTP Network Connectivity Failure: Unable to connect to {host}:{port}. (Details: {str(e)})"
+                logger.error(f"❌ [SMTP NETWORK ERROR] {err_msg}")
+                return (False, err_msg)
+
             except Exception as e:
                 err_msg = f"SMTP Exception during email dispatch to {recipient_email}: {str(e)}"
                 logger.error(f"❌ [SMTP EXCEPTION] {err_msg}")
